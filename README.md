@@ -2,8 +2,13 @@
 
 A high-performance, thread-safe prefix trie (prefix tree) implementation in Go for efficient string prefix matching and retrieval.
 
+[![Tests](https://github.com/ice1x/go-prefix-trie/actions/workflows/test.yml/badge.svg)](https://github.com/ice1x/go-prefix-trie/actions/workflows/test.yml)
+[![CodeQL](https://github.com/ice1x/go-prefix-trie/actions/workflows/codeql.yml/badge.svg)](https://github.com/ice1x/go-prefix-trie/actions/workflows/codeql.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ice1x/go-prefix-trie)](https://goreportcard.com/report/github.com/ice1x/go-prefix-trie)
+[![codecov](https://codecov.io/gh/ice1x/go-prefix-trie/branch/main/graph/badge.svg)](https://codecov.io/gh/ice1x/go-prefix-trie)
 [![Go Version](https://img.shields.io/badge/go-1.18+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![GoDoc](https://pkg.go.dev/badge/github.com/ice1x/go-prefix-trie)](https://pkg.go.dev/github.com/ice1x/go-prefix-trie)
 
 ## Features
 
