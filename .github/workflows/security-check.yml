@@ -10,6 +10,7 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
     - name: Checkout code
@@ -19,6 +20,10 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
+        cache: false
+
+    - name: Verify Go installation
+      run: go version
 
     - name: Run go vet
       run: go vet ./...
@@ -34,9 +39,15 @@ jobs:
       if: always()
       run: |
         if [ -f gosec-report.json ]; then
-          cat gosec-report.json
+          echo "📊 Security Scan Results:"
+          cat gosec-report.json | jq '.Stats' || cat gosec-report.json
           echo ""
-          echo "Security scan completed!"
+          issues=$(cat gosec-report.json | jq '.Stats.found // 0')
+          if [ "$issues" -eq 0 ]; then
+            echo "✅ No security issues found!"
+          else
+            echo "⚠️ Found $issues potential security issues. Check the artifact for details."
+          fi
         fi
 
     - name: Upload gosec report
@@ -47,7 +58,11 @@ jobs:
         path: gosec-report.json
         retention-days: 30
 
-    - name: Check for vulnerabilities with govulncheck
+    - name: Install govulncheck
+      run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+    - name: Check for vulnerabilities
       run: |
-        go install golang.org/x/vuln/cmd/govulncheck@latest
+        echo "🔍 Scanning for known vulnerabilities..."
         govulncheck ./...
+        echo "✅ No vulnerabilities found in dependencies!"
