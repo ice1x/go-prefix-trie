@@ -34,7 +34,14 @@ jobs:
       run: go mod download
       continue-on-error: true
 
-    - name: Run tests
+    - name: Run tests (Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+    - name: Run tests (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
       run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
     - name: Upload coverage to Codecov
@@ -84,4 +91,5 @@ jobs:
         cache: false
 
     - name: Run benchmarks
+      shell: bash
       run: go test -bench=. -benchmem -run=^$ ./...
