@@ -183,15 +183,15 @@ func BenchmarkTrie_Insert_SmallData(b *testing.B) {
 func BenchmarkTrie_Insert_LargeData(b *testing.B) {
 	trie := NewTrie()
 	data := map[string]string{
-		"field1": "value1",
-		"field2": "value2",
-		"field3": "value3",
-		"field4": "value4",
-		"field5": "value5",
-		"field6": "value6",
-		"field7": "value7",
-		"field8": "value8",
-		"field9": "value9",
+		"field1":  "value1",
+		"field2":  "value2",
+		"field3":  "value3",
+		"field4":  "value4",
+		"field5":  "value5",
+		"field6":  "value6",
+		"field7":  "value7",
+		"field8":  "value8",
+		"field9":  "value9",
 		"field10": "value10",
 	}
 
