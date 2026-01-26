@@ -232,10 +232,10 @@ func TestTrie_GetByPrefix(t *testing.T) {
 	_ = trie.Insert("hero", map[string]string{"value": "brave"})
 
 	tests := []struct {
-		name     string
-		prefix   string
-		wantLen  int
-		wantNil  bool
+		name    string
+		prefix  string
+		wantLen int
+		wantNil bool
 	}{
 		{"Prefix 'hel'", "hel", 3, false},
 		{"Prefix 'he'", "he", 4, false},
