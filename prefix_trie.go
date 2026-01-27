@@ -267,23 +267,34 @@ func (t *Trie) sortResults(result []map[string]string, key string, order SortOrd
 }
 
 // collectDataByChild recursively collects all data from a node and its descendants
-// Optimized to reduce allocations
+// Optimized to reduce allocations by passing slice pointer
 func (t *Trie) collectDataByChild(node *Node) []map[string]string {
-	node.mu.RLock()
-	defer node.mu.RUnlock()
+	// Estimate initial capacity based on typical trie usage
+	result := make([]map[string]string, 0, 64)
+	t.collectDataRecursive(node, &result)
+	return result
+}
 
-	// Pre-allocate with estimated capacity
-	result := make([]map[string]string, 0, len(node.Data)+len(node.Children))
+// collectDataRecursive is the internal recursive function that appends to the provided slice
+// This avoids creating new slices at each recursion level
+func (t *Trie) collectDataRecursive(node *Node, result *[]map[string]string) {
+	node.mu.RLock()
 
 	// Add current node's data
-	result = append(result, node.Data...)
+	*result = append(*result, node.Data...)
 
-	// Recursively collect from children
+	// Get children references while holding lock
+	children := make([]*Node, 0, len(node.Children))
 	for _, child := range node.Children {
-		result = append(result, t.collectDataByChild(child)...)
+		children = append(children, child)
 	}
 
-	return result
+	node.mu.RUnlock()
+
+	// Recursively collect from children (lock released to avoid holding during recursion)
+	for _, child := range children {
+		t.collectDataRecursive(child, result)
+	}
 }
 
 // Count returns the total number of data entries in the trie
