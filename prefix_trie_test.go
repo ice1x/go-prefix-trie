@@ -533,3 +533,253 @@ func TestTrie_EdgeCases(t *testing.T) {
 		t.Error("Failed to search long string")
 	}
 }
+
+// ============================================================================
+// UNIT TESTS FOR OPTIMIZED collectDataByChild
+// These tests verify correctness of the optimized data collection function.
+// ============================================================================
+
+// TestCollectDataByChild_BasicFunctionality tests that data collection works correctly.
+func TestCollectDataByChild_BasicFunctionality(t *testing.T) {
+	trie := NewTrie()
+
+	// Setup test data
+	testData := []struct {
+		key  string
+		data map[string]string
+	}{
+		{"apple", map[string]string{"name": "apple", "type": "fruit"}},
+		{"application", map[string]string{"name": "application", "type": "software"}},
+		{"apply", map[string]string{"name": "apply", "type": "verb"}},
+		{"banana", map[string]string{"name": "banana", "type": "fruit"}},
+	}
+
+	for _, td := range testData {
+		_ = trie.Insert(td.key, td.data)
+	}
+
+	// Test: collect all data with prefix "app"
+	result := trie.GetByPrefix("app")
+
+	if len(result) != 3 {
+		t.Errorf("GetByPrefix('app') expected 3 results, got %d", len(result))
+	}
+
+	// Verify all expected items are present
+	names := make(map[string]bool)
+	for _, r := range result {
+		names[r["name"]] = true
+	}
+
+	for _, expected := range []string{"apple", "application", "apply"} {
+		if !names[expected] {
+			t.Errorf("Expected '%s' in results, but not found", expected)
+		}
+	}
+}
+
+// TestCollectDataByChild_EmptyNode tests collecting from a node with no data.
+func TestCollectDataByChild_EmptyNode(t *testing.T) {
+	trie := NewTrie()
+
+	// Insert only "application" - "app" will be a prefix without data
+	_ = trie.Insert("application", map[string]string{"name": "application"})
+
+	// "app" exists as prefix but has no data itself
+	result := trie.GetByPrefix("app")
+
+	if len(result) != 1 {
+		t.Errorf("GetByPrefix('app') expected 1 result, got %d", len(result))
+	}
+
+	if result[0]["name"] != "application" {
+		t.Errorf("Expected 'application', got '%s'", result[0]["name"])
+	}
+}
+
+// TestCollectDataByChild_DeepTree tests data collection in deeply nested structure.
+func TestCollectDataByChild_DeepTree(t *testing.T) {
+	trie := NewTrie()
+
+	// Create a deep tree structure
+	words := []string{
+		"a",
+		"ab",
+		"abc",
+		"abcd",
+		"abcde",
+		"abcdef",
+		"abcdefg",
+		"abcdefgh",
+		"abcdefghi",
+		"abcdefghij",
+	}
+
+	for i, word := range words {
+		_ = trie.Insert(word, map[string]string{"depth": fmt.Sprintf("%d", i+1)})
+	}
+
+	// Collect all from root
+	result := trie.GetByPrefix("")
+
+	if len(result) != 10 {
+		t.Errorf("Expected 10 results from deep tree, got %d", len(result))
+	}
+
+	// Collect from middle
+	result = trie.GetByPrefix("abcde")
+
+	if len(result) != 6 {
+		t.Errorf("Expected 6 results from 'abcde' prefix, got %d", len(result))
+	}
+}
+
+// TestCollectDataByChild_WideTree tests data collection with many siblings.
+func TestCollectDataByChild_WideTree(t *testing.T) {
+	trie := NewTrie()
+
+	// Create a wide tree with many siblings at each level
+	prefixes := []string{"aa", "ab", "ac", "ad", "ae", "af", "ag", "ah", "ai", "aj"}
+
+	for _, prefix := range prefixes {
+		for i := 0; i < 10; i++ {
+			key := fmt.Sprintf("%s%d", prefix, i)
+			_ = trie.Insert(key, map[string]string{"key": key})
+		}
+	}
+
+	// Collect all starting with "a"
+	result := trie.GetByPrefix("a")
+
+	if len(result) != 100 {
+		t.Errorf("Expected 100 results from wide tree, got %d", len(result))
+	}
+
+	// Collect from one branch
+	result = trie.GetByPrefix("ab")
+
+	if len(result) != 10 {
+		t.Errorf("Expected 10 results from 'ab' prefix, got %d", len(result))
+	}
+}
+
+// TestCollectDataByChild_MultipleDataPerNode tests nodes with multiple data entries.
+func TestCollectDataByChild_MultipleDataPerNode(t *testing.T) {
+	trie := NewTrie()
+
+	// Insert multiple entries for the same key
+	_ = trie.Insert("test", map[string]string{"version": "1"})
+	_ = trie.Insert("test", map[string]string{"version": "2"})
+	_ = trie.Insert("test", map[string]string{"version": "3"})
+	_ = trie.Insert("testing", map[string]string{"version": "1"})
+
+	result := trie.GetByPrefix("test")
+
+	if len(result) != 4 {
+		t.Errorf("Expected 4 results (3 for 'test' + 1 for 'testing'), got %d", len(result))
+	}
+}
+
+// TestCollectDataByChild_PreserveDataIntegrity verifies data is not corrupted during collection.
+func TestCollectDataByChild_PreserveDataIntegrity(t *testing.T) {
+	trie := NewTrie()
+
+	original := map[string]string{
+		"key1": "value1",
+		"key2": "value2",
+		"key3": "value3",
+	}
+
+	_ = trie.Insert("test", original)
+
+	// Collect data
+	result := trie.GetByPrefix("test")
+
+	if len(result) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(result))
+	}
+
+	// Verify all keys and values are preserved
+	for key, value := range original {
+		if result[0][key] != value {
+			t.Errorf("Data integrity failed: expected %s=%s, got %s=%s", key, value, key, result[0][key])
+		}
+	}
+}
+
+// TestCollectDataByChild_ConcurrentCollection tests thread safety during collection.
+func TestCollectDataByChild_ConcurrentCollection(t *testing.T) {
+	trie := NewTrie()
+
+	// Pre-populate
+	for i := 0; i < 100; i++ {
+		_ = trie.Insert(fmt.Sprintf("key%d", i), map[string]string{"id": fmt.Sprintf("%d", i)})
+	}
+
+	var wg sync.WaitGroup
+	errors := make(chan error, 20)
+
+	// Run concurrent collections
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				result := trie.GetByPrefix("key")
+				if len(result) != 100 {
+					errors <- fmt.Errorf("expected 100 results, got %d", len(result))
+					return
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errors)
+
+	for err := range errors {
+		t.Error(err)
+	}
+}
+
+// TestCollectDataByChild_ConcurrentModification tests collection during modifications.
+func TestCollectDataByChild_ConcurrentModification(t *testing.T) {
+	trie := NewTrie()
+
+	// Pre-populate
+	for i := 0; i < 50; i++ {
+		_ = trie.Insert(fmt.Sprintf("prefix%d", i), map[string]string{"id": fmt.Sprintf("%d", i)})
+	}
+
+	var wg sync.WaitGroup
+
+	// Concurrent inserts
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 50; i < 100; i++ {
+			_ = trie.Insert(fmt.Sprintf("prefix%d", i), map[string]string{"id": fmt.Sprintf("%d", i)})
+		}
+	}()
+
+	// Concurrent collections
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 100; i++ {
+			result := trie.GetByPrefix("prefix")
+			// Result count may vary during concurrent inserts, but should be >= 50
+			if len(result) < 50 {
+				t.Errorf("Expected at least 50 results during concurrent modification, got %d", len(result))
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	// Final verification
+	result := trie.GetByPrefix("prefix")
+	if len(result) != 100 {
+		t.Errorf("After all inserts, expected 100 results, got %d", len(result))
+	}
+}
